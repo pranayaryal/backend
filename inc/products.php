@@ -6,24 +6,28 @@
                              the most recent product is the last one in the array
  */
 function get_products_recent() {
-    $recent = array();
-    $all = get_products_all();
+    require(ROOT_PATH . "inc/database.php");
 
-    $total_products = count($all);
-    $position = 0;
-    
-    foreach($all as $product) {
-        $position = $position + 1;
-        if ($total_products - $position < 4) {
-            $recent[] = $product;
-        }
+    try {
+        $results = $db->query("
+            SELECT name, price, img, sku, paypal 
+            FROM products
+            ORDER BY sku DESC
+            LIMIT 4");
+
+    } catch(Exception $e){
+        echo "Data could not be retrieved from the database";
+        exit;
     }
+
+    $recent = $results->fetchAll(PDO::FETCH_ASSOC);
+    $recent = array_reverse($recent);
     return $recent;
 }
 
 /*
  * Loops through all the products, looking for a search term in the product names
- * @param    string    $s    the search term
+ * @param    string    $s    the search term 
  * @return   array           a list of the products that contain the search term in their name
  */
 function get_products_search($s) {
@@ -73,6 +77,7 @@ function get_products_subset($positionStart, $positionEnd) {
  * @return   array           the full list of products
  */
 function get_products_all() {
+    /*
     $products = array();
     $products[101] = array(
     	"name" => "Logo Shirt, Red",
@@ -306,8 +311,74 @@ function get_products_all() {
     foreach ($products as $product_id => $product) {
         $products[$product_id]["sku"] = $product_id;
     }
+    */
+
+    //using the mysql database to retrieve products data
+    require(ROOT_PATH . "inc/database.php");
+
+    try {
+        $results = $db->query("SELECT name, price, img, sku, paypal FROM products ORDER BY sku ASC");
+        echo "Our query ran succesfully";
+
+    } catch(Exception $e){
+        echo "Data could not be retrieved";
+        exit;
+    }
+
+    $products = $results->fetchAll(PDO::FETCH_ASSOC);
 
     return $products;
 }
+
+/* 
+ * Returns an array of product information for the product that matches the sku;
+ * returns a boolean false if no product matches the sku;
+ * @param       int     $sku    the sku
+ * @return mixed array  list of product information for the one matching product
+ *               bool   false if no product matches
+ */
+
+function get_product_single($sku){
+
+    require(ROOT_PATH . "inc/database.php");
+
+    try {
+        $results = $db->prepare("SELECT name, price, img, sku, paypal FROM products WHERE sku = ?");
+        $results->bindParam(1,$sku);
+        $results->execute();
+    } catch(Exception $e){
+        echo "Data could not be retrieved";
+        exit;
+    }
+
+    $product = $results->fetch(PDO::FETCH_ASSOC);
+
+    if ($product == false) return $product;
+
+    $product["sizes"] = array();
+
+    try {
+        $results = $db->prepare("
+            SELECT size 
+            FROM   products_sizes ps 
+            INNER JOIN  sizes s ON ps.size_id = s.id
+            WHERE product_sku = ?
+            ORDER BY `order`");
+        $results->bindParam(1,$sku);
+        $results->execute();
+
+    } catch(Exception $e){
+        echo "Data couldnot be retrieved from the databse";
+        exit;
+    }
+
+    while ($row = $results->fetch(PDO::FETCH_ASSOC)){
+        $product["sizes"][] = $row["size"];
+    }
+
+    return $product;
+
+}
+
 
 ?>
