@@ -344,6 +344,7 @@ function get_product_single($sku){
 
     try {
         $results = $db->prepare("SELECT name, price, img, sku, paypal FROM products WHERE sku = ?");
+        //bindParam is used to refine the search using placeholder parameters
         $results->bindParam(1,$sku);
         $results->execute();
     } catch(Exception $e){
